@@ -35,15 +35,10 @@ void loop() {
 //  unsigned char flg = false;
 
 //  digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-/*
+
   digitalWrite(PC15, LOW);   // turn the LED off by making the voltage LOW
   digitalWrite(PC14, LOW);   // turn the LED off by making the voltage LOW
   digitalWrite(PC13, LOW);   // turn the LED off by making the voltage LOW
-*/
-
-  digitalWrite(PC15, HIGH);   // turn the LED off by making the voltage LOW
-  digitalWrite(PC14, HIGH);   // turn the LED off by making the voltage LOW
-  digitalWrite(PC13, HIGH);   // turn the LED off by making the voltage LOW
 
   //敵センサのデバッグ処理
   if(digitalRead(PB12) == 0)  digitalWrite(PC13, HIGH); //D5点灯
