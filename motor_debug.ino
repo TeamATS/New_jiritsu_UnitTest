@@ -32,29 +32,98 @@ void setup() {
   pinMode(PA5, OUTPUT); //DIR_L
   analogWriteFrequency(1000);
 
+  digitalWrite(PC15, LOW);   // turn the LED off by making the voltage LOW
+  digitalWrite(PC14, LOW);   // turn the LED off by making the voltage LOW
+  digitalWrite(PC13, LOW);   // turn the LED off by making the voltage LOW
+
 }
 
 void loop() {
 
-  //正転
   digitalWrite(PA4, HIGH);
   digitalWrite(PA5, HIGH);
+  analogWrite(PA6, 126); //PWM_R
+  analogWrite(PA7, 126); //PWM_L
+  digitalWrite(PC13,HIGH);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,LOW);
+
+delay(1000);
+
+  digitalWrite(PA4, HIGH);
+  digitalWrite(PA5, LOW);
+  analogWrite(PA6, 126); //PWM_R
+  analogWrite(PA7, 126); //PWM_L
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,HIGH);
+
+delay(1000);
+
+  digitalWrite(PA4, LOW);
+  digitalWrite(PA5, HIGH);
+  analogWrite(PA6, 126); //PWM_R
+  analogWrite(PA7, 126); //PWM_L
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,HIGH);
+
+delay(1000);
+
+  digitalWrite(PA4, LOW);
+  digitalWrite(PA5, LOW);
+  analogWrite(PA6, 126); //PWM_R
+  analogWrite(PA7, 126); //PWM_L
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,HIGH);
+
+delay(1000);
+
+/*
+  //正転
+  digitalWrite(PA4, HIGH);
+//  digitalWrite(PA5, HIGH);
   analogWrite(PA6, 255); //PWM_R
-  analogWrite(PA7, 255); //PWM_L
+//  analogWrite(PA7, 255); //PWM_L
+  digitalWrite(PC13,HIGH);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,LOW);
 
   delay(1000);
 
   //停止
+  digitalWrite(PA4, HIGH);
+//  digitalWrite(PA5, HIGH);
   analogWrite(PA6, 0); //PWM_R
-  analogWrite(PA7, 0); //PWM_L
-
-  delay(500);
+//  analogWrite(PA7, 0); //PWM_L
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,HIGH);
+  digitalWrite(PC15,LOW);
 
   //逆転
   digitalWrite(PA4, LOW);
-  digitalWrite(PA5, LOW);
+//  digitalWrite(PA5, LOW);
   analogWrite(PA6, 255); //PWM_R
-  analogWrite(PA7, 255); //PWM_L
+//  analogWrite(PA7, 255); //PWM_L
+  digitalWrite(PC13,HIGH);
+  digitalWrite(PC14,HIGH);
+  digitalWrite(PC15,LOW);
 
   delay(1000);
+
+  //停止
+  digitalWrite(PA4, LOW);
+//  digitalWrite(PA5, LOW);
+  analogWrite(PA6, 0); //PWM_R
+//  analogWrite(PA7, 0); //PWM_L
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,HIGH);
+
+  delay(1000);
+  digitalWrite(PC13,LOW);
+  digitalWrite(PC14,LOW);
+  digitalWrite(PC15,LOW);
+  */
 }
