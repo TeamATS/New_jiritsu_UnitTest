@@ -1,27 +1,5 @@
 
 void setup() {
-
-  pinMode(PB12, INPUT_PULLUP);
-  pinMode(PB13, INPUT_PULLUP);
-  pinMode(PB14, INPUT_PULLUP);
-  pinMode(PB15, INPUT_PULLUP);
-  pinMode(PA8, INPUT_PULLUP);
-  pinMode(PA9, INPUT_PULLUP);
-  pinMode(PA10, INPUT_PULLUP);
-  pinMode(PA11, INPUT_PULLUP);
-  pinMode(PA12, INPUT_PULLUP);
-  pinMode(PA15, INPUT_PULLUP);
-  pinMode(PB3, INPUT_PULLUP);
-  pinMode(PB4, INPUT_PULLUP);
-  pinMode(PB5, INPUT_PULLUP);
-  pinMode(PB6, INPUT_PULLUP);
-  pinMode(PB7, INPUT_PULLUP);
-  pinMode(PB8, INPUT_PULLUP);
-  pinMode(PB9, INPUT_PULLUP);
-
-  pinMode(PB2, INPUT_PULLUP);
-  pinMode(PB1, INPUT_PULLUP);
-  pinMode(PB0, INPUT_PULLUP);
   
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(PC15, OUTPUT);
