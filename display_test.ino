@@ -112,12 +112,12 @@ void loop() {
     sen_whl = (digitalRead(WHITE_SENSOR_RR) << 3) | (digitalRead(WHITE_SENSOR_RF) << 2)
           |(digitalRead(WHITE_SENSOR_LR) << 1) | (digitalRead(WHITE_SENSOR_LF) << 0);
 
-    //センサ値反転(対物/ブレード上下はLowアクティブなので)
+    //センサ値反転(対物はLowアクティブなので)
     sen_ene ^= B11111111;
   //  sen_bld ^= B11111111;
 
-    //センサ値送信(対物/ブレード上下はLowアクティブなので)
-    Serial2.println("MES");
+    //センサ値送信
+    Serial2.println("M");
   //  Serial2.println("甲：");
     Serial2.println(String(sen_ene));
   //  Serial2.println("乙：");
