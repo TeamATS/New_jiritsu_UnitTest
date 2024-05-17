@@ -1,10 +1,6 @@
 
 #include "typedef.h"
 
-#include "encoder.h"
-#include "sumo_serial.h"
-#include "tire.h"
-
 #define SERIAL_BAUDRATE 9600
 
 #define ENEMY_SENSOR_L1  PB12
@@ -33,6 +29,8 @@
 #define LED1  PC15
 #define LED2  PC14
 #define LED3  PC13
+
+HardwareSerial Serial2(PA3, PA2);
 
 void setup() {
 
@@ -70,16 +68,12 @@ void setup() {
 
   // serial setting
   Serial.begin(SERIAL_BAUDRATE);   // usb
+  Serial2.begin(9600);
+
 }
 
 void loop() {
 
-//  SumoSerial sumo_serial(SERIAL_BAUDRATE);
-  HardwareSerial Serial2(PA3, PA2);
-  Serial2.begin(9600);
-
-  Encoder encoder;
-  Tire tire;
 
   static u1 mode = 0;
   static u1 num = 1;
@@ -89,15 +83,6 @@ void loop() {
   static u1 sen_whl = 0;
 
   while(1){
-//    periodic_process();
-//    sumo_serial.ReadString(true);
-//    Serial.println(String(encoder.GetCount()));
-//    delay(100);
-
-    // if (Serial2.available()) {
-    //   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    // }
-
     //センサ値取得
     sen_ene = (digitalRead(ENEMY_SENSOR_L1) << 7) | (digitalRead(ENEMY_SENSOR_L2) << 6)
           |(digitalRead(ENEMY_SENSOR_L3) << 5) | (digitalRead(ENEMY_SENSOR_C1) << 4)
@@ -114,60 +99,21 @@ void loop() {
 
     //センサ値反転(対物はLowアクティブなので)
     sen_ene ^= B11111111;
-  //  sen_bld ^= B11111111;
 
     //センサ値送信
     Serial2.println("M");
   //  Serial2.println("甲：");
-    Serial2.println(String(sen_ene));
+     Serial2.println(String(sen_ene));
   //  Serial2.println("乙：");
     Serial2.println(String(sen_bld));
   //  Serial2.println("丙：");
-    Serial2.println(String(sen_whl));
+     Serial2.println(String(sen_whl));
   //  Serial2.println("終端");
 
-/*
-    //敵センサのデバッグ処理
-    if(sen_ene != 0xff) digitalWrite(LED3, HIGH);
-    else                digitalWrite(LED3, LOW);
-
-    //白線センサのデバッグ処理
-    if(sen_whl != 0x00) digitalWrite(LED1, HIGH);
-    else                digitalWrite(LED1, LOW);
-
-    //照度センサ(ブレ上)のデバッグ処理
-    if(sen_bld != 0x7f) digitalWrite(LED2, HIGH);
-    else                digitalWrite(LED2, LOW);
-*/
     delay(200);
 
-    // switch(mode){
-    //   case 0:
-    //     if(serial_test()) mode = 1;
-    //     break;
-
-    //   case 1:
-    //     periodic_process();
-    //     break;
-    // }
   }
 
 }
 
-// =====================================================
-// 定期処理
-// =====================================================
-#define CYCLE_TIME 1
-void periodic_process(void){
 
-  static u4 prevTime = 0;
-  u4 currentTime = millis();
-
-  // 定期処理
-  if((currentTime - prevTime) >= CYCLE_TIME){
-    prevTime = currentTime;
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-  }
-
-  return;
-}
