@@ -82,6 +82,15 @@ void loop() {
   static u1 sen_bld = 0;
   static u1 sen_whl = 0;
 
+  String rx_str1;
+  String rx_str2;
+  String rx_str3;
+  String rx_str4;
+
+  int num_state2;
+  int num_state3;
+  int num_state4;
+
   while(1){
     //センサ値取得
     sen_ene = (digitalRead(ENEMY_SENSOR_L1) << 7) | (digitalRead(ENEMY_SENSOR_L2) << 6)
@@ -109,6 +118,24 @@ void loop() {
   //  Serial2.println("丙：");
      Serial2.println(String(sen_whl));
   //  Serial2.println("終端");
+
+  if (Serial2.available()) {            // 受信データ(Serial2)があれば
+      digitalWrite(PC13, HIGH); //D5点灯
+      rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+
+      if (rx_str1.equals("S\r") == 1) {
+      digitalWrite(PC14, HIGH); //D4点灯
+
+        rx_str2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+        rx_str3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+        rx_str4 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+
+        num_state2 = rx_str2.toInt();
+        num_state3 = rx_str3.toInt();
+        num_state4 = rx_str3.toInt();
+
+      }
+  }
 
     delay(200);
 
