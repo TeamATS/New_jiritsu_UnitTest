@@ -31,6 +31,7 @@
 #define LED3  PC13
 
 HardwareSerial Serial2(PA3, PA2);
+u1 led_flag = 0;
 
 void setup() {
 
@@ -62,6 +63,7 @@ void setup() {
   pinMode(WHITE_SENSOR_RR, INPUT);
 
   //LED
+  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
@@ -119,13 +121,11 @@ void loop() {
      Serial2.println(String(sen_whl));
   //  Serial2.println("終端");
 
-  if (Serial2.available()) {            // 受信データ(Serial2)があれば
-      digitalWrite(PC13, HIGH); //D5点灯
+    if (Serial2.available()) {            // 受信データ(Serial2)があれば
       rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
-
+      led_flag = 1; //LED点灯
       if (rx_str1.equals("S\r") == 1) {
-      digitalWrite(PC14, HIGH); //D4点灯
-
+        led_flag = 2; //LED点滅(500ms)
         rx_str2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
         rx_str3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
         rx_str4 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
@@ -135,12 +135,44 @@ void loop() {
         num_state4 = rx_str3.toInt();
 
       }
-  }
+    }
+    //LED出力更新
+    LED_BLINK();
 
     delay(200);
-
   }
-
 }
 
+void LED_BLINK(void){
+  // 現在の時間を取得
+  u4 currentTime = millis();
+  // フラグに応じてLEDの動作を制御
+  switch (led_flag) {
+    case 0:
+      digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
+      break;
+    case 1:
+      digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
+      break;
+    case 2:
+      // フラグが1の場合、500ms周期で点滅
+      if (currentTime % 500 < 250) {
+        digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
+      } else {
+        digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
+      }
+      break;
+    case 3:
+      // フラグが2の場合、1000ms周期で点滅
+      if (currentTime % 1000 < 500) {
+        digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
+      } else {
+        digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
+      }
+      break;
+    default:
+      // 未定義のフラグ値の場合、何もしない
+      break;
+  }
+}
 
