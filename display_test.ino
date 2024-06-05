@@ -1,4 +1,3 @@
-
 #include "typedef.h"
 
 #define SERIAL_BAUDRATE 9600
@@ -30,10 +29,16 @@
 #define LED2  PC14
 #define LED3  PC13
 
+
 HardwareSerial Serial2(PA3, PA2);
 u1 led_flag = 0;
+unsigned long previousMillis = 0;
+const long interval1 = 500; // 500ms間隔
+const long interval2 = 1000; // 1000ms間隔
 
 void setup() {
+
+Serial.end();
 
   //ENEMY_SENSOR
   pinMode(ENEMY_SENSOR_L1, INPUT);
@@ -70,7 +75,7 @@ void setup() {
 
   // serial setting
   Serial.begin(SERIAL_BAUDRATE);   // usb
-  Serial2.begin(9600);
+  Serial2.begin(SERIAL_BAUDRATE);      // UART1 通信速度
 
 }
 
@@ -111,6 +116,7 @@ void loop() {
     //センサ値反転(対物はLowアクティブなので)
     sen_ene ^= B11111111;
 
+/*
     //センサ値送信
     Serial2.println("M");
   //  Serial2.println("甲：");
@@ -120,15 +126,21 @@ void loop() {
   //  Serial2.println("丙：");
      Serial2.println(String(sen_whl));
   //  Serial2.println("終端");
-
-    if (Serial2.available()) {            // 受信データ(Serial2)があれば
-      rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+*/
+    if (Serial2.available()) {            // 受信データ(Serial1)があれば
+      rx_str1 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
       led_flag = 1; //LED点灯
+      Serial2.println(String(rx_str1));
+
       if (rx_str1.equals("S\r") == 1) {
         led_flag = 2; //LED点滅(500ms)
-        rx_str2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
-        rx_str3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
-        rx_str4 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+        rx_str2 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+        rx_str3 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+        rx_str4 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+
+        Serial2.println(String(rx_str2));
+        Serial2.println(String(rx_str3));
+        Serial2.println(String(rx_str4));
 
         num_state2 = rx_str2.toInt();
         num_state3 = rx_str3.toInt();
@@ -145,7 +157,8 @@ void loop() {
 
 void LED_BLINK(void){
   // 現在の時間を取得
-  u4 currentTime = millis();
+  unsigned long currentMillis = millis();
+
   // フラグに応じてLEDの動作を制御
   switch (led_flag) {
     case 0:
@@ -155,19 +168,17 @@ void LED_BLINK(void){
       digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
       break;
     case 2:
-      // フラグが1の場合、500ms周期で点滅
-      if (currentTime % 500 < 250) {
-        digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
-      } else {
-        digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
+      // フラグが2の場合、500ms周期で点滅
+      if (currentMillis - previousMillis >= interval1) {
+        previousMillis = currentMillis;
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // LED反転
       }
       break;
     case 3:
-      // フラグが2の場合、1000ms周期で点滅
-      if (currentTime % 1000 < 500) {
-        digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
-      } else {
-        digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
+      // フラグが3の場合、1000ms周期で点滅
+      if (currentMillis - previousMillis >= interval2) {
+        previousMillis = currentMillis;
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // LED反転
       }
       break;
     default:
