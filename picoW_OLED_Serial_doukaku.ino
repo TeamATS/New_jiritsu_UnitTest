@@ -527,16 +527,20 @@ void serial_comu_test() {
     Serial.print("Serial受信!!");
     Serial.println(Serial1.available());
     rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
-        Serial.print(rx_str1);
+//        Serial.print(rx_str1);
 
-    if (rx_str1.equals("M\r") == 1) {
-      Serial.println("decode!");
+    if (rx_str1.equals("S\r") == 1) {
+      Serial.println(rx_str1);
       //文字列比較
       //https://greenhornprofessional.hatenablog.com/entry/2020/09/13/223155
 
       rx_str2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
       rx_str3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
       rx_str4 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
+
+      Serial.println(rx_str2);
+      Serial.println(rx_str3);
+      Serial.println(rx_str4);
 
       if (0) {
         Serial.println(rx_str1);
@@ -761,7 +765,7 @@ void loop() {
   }
 
   //Serial Output()
-  if(counter_6 >2500){
+  if(counter_6 >500){
     counter_6 = 0;
     serial_comu_soushin_test();    
   }
