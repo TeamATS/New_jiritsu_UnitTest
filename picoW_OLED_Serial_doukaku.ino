@@ -529,7 +529,7 @@ void serial_comu_test() {
     rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
 //        Serial.print(rx_str1);
 
-    if (rx_str1.equals("S\r") == 1) {
+    if (rx_str1.equals("M\r") == 1) {
       Serial.println(rx_str1);
       //文字列比較
       //https://greenhornprofessional.hatenablog.com/entry/2020/09/13/223155
