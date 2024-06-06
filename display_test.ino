@@ -127,29 +127,44 @@ void loop() {
      Serial2.println(String(sen_whl));
   //  Serial2.println("終端");
 */
+    digitalWrite(LED1, LOW);
+    digitalWrite(LED2, LOW);
+    digitalWrite(LED3, LOW);
+
     if (Serial2.available()) {            // 受信データ(Serial1)があれば
       rx_str1 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      led_flag = 1; //LED点灯
-      Serial2.println(String(rx_str1));
+//      led_flag = 1; //LED点灯
+
+
+//      Serial2.println(String(rx_str1));
 
       if (rx_str1.equals("S\r") == 1) {
-        led_flag = 2; //LED点滅(500ms)
+//        led_flag = 1; //LED点滅(500ms)
+
         rx_str2 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
         rx_str3 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
         rx_str4 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
 
-        Serial2.println(String(rx_str2));
-        Serial2.println(String(rx_str3));
-        Serial2.println(String(rx_str4));
-
         num_state2 = rx_str2.toInt();
         num_state3 = rx_str3.toInt();
-        num_state4 = rx_str3.toInt();
+        num_state4 = rx_str4.toInt();
+
+        digitalWrite(LED1, num_state4 & 0x1);
+        digitalWrite(LED2, num_state4 & 0x2);
+        digitalWrite(LED3, num_state4 & 0x4);
+
+        if(num_state4 >= 0 && num_state4 <= 8)
+        {
+          Serial2.println("M");
+          Serial2.println(rx_str2);
+          Serial2.println(rx_str3);
+          Serial2.println(rx_str4);
+        }
 
       }
     }
     //LED出力更新
-    LED_BLINK();
+//    LED_BLINK();
 
     delay(200);
   }
