@@ -29,12 +29,33 @@
 #define LED2  PC14
 #define LED3  PC13
 
-
 HardwareSerial Serial2(PA3, PA2);
 u1 led_flag = 0;
 unsigned long previousMillis = 0;
 const long interval1 = 500; // 500ms間隔
 const long interval2 = 1000; // 1000ms間隔
+
+u1 lastValue = -1; // 前回の値を保存する変数
+u1 sameCount = 0; // 同じ値が何回連続で受信されたかを保存する変数
+
+String rx_str1;
+String rx_str2;
+String rx_str3;
+String rx_str4;
+
+String last_rx_str1;
+
+u1 num_state2;
+u1 num_state3;
+u1 num_state4;
+
+u1 last_num_state2;
+u1 last_num_state3;
+u1 last_num_state4;
+
+u1 sen_ene = 0;
+u1 sen_bld = 0;
+u1 sen_whl = 0;
 
 void setup() {
 
@@ -85,20 +106,12 @@ void loop() {
   static u1 mode = 0;
   static u1 num = 1;
 
-  static u1 sen_ene = 0;
-  static u1 sen_bld = 0;
-  static u1 sen_whl = 0;
-
-  String rx_str1;
-  String rx_str2;
-  String rx_str3;
-  String rx_str4;
-
-  int num_state2;
-  int num_state3;
-  int num_state4;
-
   while(1){
+
+    digitalWrite(LED1, LOW);
+    digitalWrite(LED2, LOW);
+    digitalWrite(LED3, LOW);
+
     //センサ値取得
     sen_ene = (digitalRead(ENEMY_SENSOR_L1) << 7) | (digitalRead(ENEMY_SENSOR_L2) << 6)
           |(digitalRead(ENEMY_SENSOR_L3) << 5) | (digitalRead(ENEMY_SENSOR_C1) << 4)
@@ -116,30 +129,9 @@ void loop() {
     //センサ値反転(対物はLowアクティブなので)
     sen_ene ^= B11111111;
 
-/*
-    //センサ値送信
-    Serial2.println("M");
-  //  Serial2.println("甲：");
-     Serial2.println(String(sen_ene));
-  //  Serial2.println("乙：");
-    Serial2.println(String(sen_bld));
-  //  Serial2.println("丙：");
-     Serial2.println(String(sen_whl));
-  //  Serial2.println("終端");
-*/
-    digitalWrite(LED1, LOW);
-    digitalWrite(LED2, LOW);
-    digitalWrite(LED3, LOW);
-
     if (Serial2.available()) {            // 受信データ(Serial1)があれば
       rx_str1 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-//      led_flag = 1; //LED点灯
-
-
-//      Serial2.println(String(rx_str1));
-
       if (rx_str1.equals("S\r") == 1) {
-//        led_flag = 1; //LED点滅(500ms)
 
         rx_str2 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
         rx_str3 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial2)
@@ -149,25 +141,49 @@ void loop() {
         num_state3 = rx_str3.toInt();
         num_state4 = rx_str4.toInt();
 
-        digitalWrite(LED1, num_state4 & 0x1);
-        digitalWrite(LED2, num_state4 & 0x2);
-        digitalWrite(LED3, num_state4 & 0x4);
-
-        if(num_state4 >= 0 && num_state4 <= 8)
-        {
-          Serial2.println("M");
-          Serial2.println(rx_str2);
-          Serial2.println(rx_str3);
-          Serial2.println(rx_str4);
+        if (rx_str1 == last_rx_str1
+          && num_state2 == last_num_state2
+          && num_state3 == last_num_state3
+          && num_state4 == last_num_state4
+        ) { // 前回の値と同じ場合
+          sameCount++; // カウンタを増やす
+        } else { // 異なる値が受信された場合
+          sameCount = 0; // カウンタをリセットする
         }
-
+        if (sameCount == 2) { // 同じ値が2回連続で受信された場合
+          EVE_SEND(); // イベントを発生させる
+          sameCount = 0; // カウンタをリセットする
+        }
+        last_rx_str1 = rx_str1;
+        last_num_state2 = num_state2;
+        last_num_state3 = num_state3;
+        last_num_state4 = num_state4;
       }
     }
-    //LED出力更新
-//    LED_BLINK();
 
-    delay(200);
+    REG_SEND();
+    delay(100);
   }
+}
+
+void EVE_SEND(void){
+  //アンサーバック
+  digitalWrite(LED1, num_state4 & 0x1);
+  digitalWrite(LED2, num_state4 & 0x2);
+  digitalWrite(LED3, num_state4 & 0x4);
+
+  Serial2.println("A");
+  Serial2.println(rx_str2);
+  Serial2.println(rx_str3);
+  Serial2.println(rx_str4);
+}
+
+void REG_SEND(void){
+  //センサ値送信
+  Serial2.println("M");
+  Serial2.println(String(sen_ene));
+  Serial2.println(String(sen_bld));
+  Serial2.println(String(sen_whl));
 }
 
 void LED_BLINK(void){
