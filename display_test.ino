@@ -31,7 +31,7 @@
 
 HardwareSerial Serial2(PA3, PA2);
 u1 led_flag = 0;
-unsigned long previousMillis = 0;
+u4 previousMillis = 0;
 const long interval1 = 500; // 500ms間隔
 const long interval2 = 1000; // 1000ms間隔
 
@@ -101,33 +101,15 @@ Serial.end();
 }
 
 void loop() {
-
-
   static u1 mode = 0;
   static u1 num = 1;
 
   while(1){
-
     digitalWrite(LED1, LOW);
     digitalWrite(LED2, LOW);
     digitalWrite(LED3, LOW);
 
-    //センサ値取得
-    sen_ene = (digitalRead(ENEMY_SENSOR_L1) << 7) | (digitalRead(ENEMY_SENSOR_L2) << 6)
-          |(digitalRead(ENEMY_SENSOR_L3) << 5) | (digitalRead(ENEMY_SENSOR_C1) << 4)
-          |(digitalRead(ENEMY_SENSOR_C2) << 3) | (digitalRead(ENEMY_SENSOR_R3) << 2)
-          |(digitalRead(ENEMY_SENSOR_R2) << 1) | (digitalRead(ENEMY_SENSOR_R1) << 0);
-
-    sen_bld = (digitalRead(UNDER_BLADE_SENSOR_L) << 6)
-          |(digitalRead(UNDER_BLADE_SENSOR_R) << 5) | (digitalRead(ON_BLADE_SENSOR_L) << 4)
-          |(digitalRead(ON_BLADE_SENSOR_LC) << 3) | (digitalRead(ON_BLADE_SENSOR_C) << 2)
-          |(digitalRead(ON_BLADE_SENSOR_RC) << 1) | (digitalRead(ON_BLADE_SENSOR_R) << 0);
-  
-    sen_whl = (digitalRead(WHITE_SENSOR_RR) << 3) | (digitalRead(WHITE_SENSOR_RF) << 2)
-          |(digitalRead(WHITE_SENSOR_LR) << 1) | (digitalRead(WHITE_SENSOR_LF) << 0);
-
-    //センサ値反転(対物はLowアクティブなので)
-    sen_ene ^= B11111111;
+    sensor_input();
 
     if (Serial2.available()) {            // 受信データ(Serial1)があれば
       rx_str1 = Serial2.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
@@ -158,12 +140,76 @@ void loop() {
         last_num_state2 = num_state2;
         last_num_state3 = num_state3;
         last_num_state4 = num_state4;
+
+        motor_output();
       }
     }
 
     REG_SEND();
     delay(100);
   }
+}
+
+void motor_output(void){
+  switch(num_state4){
+    case 1:
+      //左：正　右：正
+      digitalWrite(PA6, HIGH);  //PWM_R
+      digitalWrite(PA4, HIGH);  //DIR_R
+      digitalWrite(PA7, HIGH);  //PWM_L
+      digitalWrite(PA5, HIGH);  //DIR_L
+    break;
+
+    case 2:
+    //左：逆　右：逆
+    digitalWrite(PA6, HIGH);  //PWM_R
+    digitalWrite(PA4, LOW);  //DIR_R
+    digitalWrite(PA7, HIGH);  //PWM_L
+    digitalWrite(PA5, LOW);  //DIR_L
+    break;
+
+    case 3:
+    //左：正　右：逆
+    digitalWrite(PA6, HIGH);  //PWM_R
+    digitalWrite(PA4, LOW);  //DIR_R
+    digitalWrite(PA7, HIGH);  //PWM_L
+    digitalWrite(PA5, HIGH);  //DIR_L
+    break;
+
+    case 4:
+    //左：逆　右：正
+    digitalWrite(PA6, HIGH);  //PWM_R
+    digitalWrite(PA4, HIGH);  //DIR_R
+    digitalWrite(PA7, HIGH);  //PWM_L
+    digitalWrite(PA5, LOW);  //DIR_L
+    break;
+
+    default:
+      digitalWrite(PA6, LOW);  //PWM_R
+      digitalWrite(PA4, LOW);  //DIR_R
+      digitalWrite(PA7, LOW);  //PWM_L
+      digitalWrite(PA5, LOW);  //DIR_L
+    break;    
+  }
+}
+
+void sensor_input(void){
+  //センサ値取得
+  sen_ene = (digitalRead(ENEMY_SENSOR_L1) << 7) | (digitalRead(ENEMY_SENSOR_L2) << 6)
+        |(digitalRead(ENEMY_SENSOR_L3) << 5) | (digitalRead(ENEMY_SENSOR_C1) << 4)
+        |(digitalRead(ENEMY_SENSOR_C2) << 3) | (digitalRead(ENEMY_SENSOR_R3) << 2)
+        |(digitalRead(ENEMY_SENSOR_R2) << 1) | (digitalRead(ENEMY_SENSOR_R1) << 0);
+
+  sen_bld = (digitalRead(UNDER_BLADE_SENSOR_L) << 6)
+        |(digitalRead(UNDER_BLADE_SENSOR_R) << 5) | (digitalRead(ON_BLADE_SENSOR_L) << 4)
+        |(digitalRead(ON_BLADE_SENSOR_LC) << 3) | (digitalRead(ON_BLADE_SENSOR_C) << 2)
+        |(digitalRead(ON_BLADE_SENSOR_RC) << 1) | (digitalRead(ON_BLADE_SENSOR_R) << 0);
+
+  sen_whl = (digitalRead(WHITE_SENSOR_RR) << 3) | (digitalRead(WHITE_SENSOR_RF) << 2)
+        |(digitalRead(WHITE_SENSOR_LR) << 1) | (digitalRead(WHITE_SENSOR_LF) << 0);
+
+  //センサ値反転(対物はLowアクティブなので)
+  sen_ene ^= B11111111;
 }
 
 void EVE_SEND(void){
