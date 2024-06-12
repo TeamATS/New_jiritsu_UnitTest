@@ -151,7 +151,7 @@ void loop() {
 }
 
 void motor_output(void){
-  switch(num_state4){
+    switch(num_state4){
     case 1:
       //左：正　右：正
       digitalWrite(PA6, HIGH);  //PWM_R
@@ -185,12 +185,19 @@ void motor_output(void){
     break;
 
     default:
+   //左：停止　右：停止
       digitalWrite(PA6, LOW);  //PWM_R
       digitalWrite(PA4, LOW);  //DIR_R
       digitalWrite(PA7, LOW);  //PWM_L
       digitalWrite(PA5, LOW);  //DIR_L
     break;    
   }
+  delay(100);
+   //左：停止　右：停止
+  digitalWrite(PA6, LOW);  //PWM_R
+  digitalWrite(PA4, LOW);  //DIR_R
+  digitalWrite(PA7, LOW);  //PWM_L
+  digitalWrite(PA5, LOW);  //DIR_L
 }
 
 void sensor_input(void){
