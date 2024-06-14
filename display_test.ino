@@ -94,8 +94,14 @@ Serial.end();
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
 
+  pinMode(PA4, OUTPUT); //DIR_R
+  pinMode(PA5, OUTPUT); //DIR_L
+  analogWriteFrequency(1000);
+  pinMode(PA6, OUTPUT); //PWM_R
+  pinMode(PA7, OUTPUT); //PWM_L
+
   // serial setting
-  Serial.begin(SERIAL_BAUDRATE);   // usb
+//  Serial.begin(SERIAL_BAUDRATE);   // usb
   Serial2.begin(SERIAL_BAUDRATE);      // UART1 通信速度
 
 }
@@ -140,8 +146,6 @@ void loop() {
         last_num_state2 = num_state2;
         last_num_state3 = num_state3;
         last_num_state4 = num_state4;
-
-        motor_output();
       }
     }
 
@@ -152,47 +156,40 @@ void loop() {
 
 void motor_output(void){
     switch(num_state4){
-    case 1:
+   case 1:
       //左：正　右：正
+      digitalWrite(PA6, HIGH);  //PWM_R
+      digitalWrite(PA4, HIGH);  //DIR_R
+      digitalWrite(PA7, HIGH);  //PWM_L
+      digitalWrite(PA5, LOW);  //DIR_L
+
+    break;
+
+    case 2:
+      //左：逆　右：逆
+      digitalWrite(PA6, HIGH);  //PWM_R
+      digitalWrite(PA4, LOW);  //DIR_R
+      digitalWrite(PA7, HIGH);  //PWM_L
+      digitalWrite(PA5, HIGH);  //DIR_L
+    break;
+
+    case 3:
+      //左：正　右：逆
       digitalWrite(PA6, HIGH);  //PWM_R
       digitalWrite(PA4, HIGH);  //DIR_R
       digitalWrite(PA7, HIGH);  //PWM_L
       digitalWrite(PA5, HIGH);  //DIR_L
     break;
 
-    case 2:
-    //左：逆　右：逆
-    digitalWrite(PA6, HIGH);  //PWM_R
-    digitalWrite(PA4, LOW);  //DIR_R
-    digitalWrite(PA7, HIGH);  //PWM_L
-    digitalWrite(PA5, LOW);  //DIR_L
-    break;
-
-    case 3:
-    //左：正　右：逆
-    digitalWrite(PA6, HIGH);  //PWM_R
-    digitalWrite(PA4, LOW);  //DIR_R
-    digitalWrite(PA7, HIGH);  //PWM_L
-    digitalWrite(PA5, HIGH);  //DIR_L
-    break;
-
     case 4:
-    //左：逆　右：正
-    digitalWrite(PA6, HIGH);  //PWM_R
-    digitalWrite(PA4, HIGH);  //DIR_R
-    digitalWrite(PA7, HIGH);  //PWM_L
-    digitalWrite(PA5, LOW);  //DIR_L
-    break;
-
-    default:
-   //左：停止　右：停止
-      digitalWrite(PA6, LOW);  //PWM_R
+      //左：逆　右：正
+      digitalWrite(PA6, HIGH);  //PWM_R
       digitalWrite(PA4, LOW);  //DIR_R
-      digitalWrite(PA7, LOW);  //PWM_L
+      digitalWrite(PA7, HIGH);  //PWM_L
       digitalWrite(PA5, LOW);  //DIR_L
-    break;    
+    break; 
   }
-  delay(100);
+  delay(500);
    //左：停止　右：停止
   digitalWrite(PA6, LOW);  //PWM_R
   digitalWrite(PA4, LOW);  //DIR_R
@@ -229,6 +226,9 @@ void EVE_SEND(void){
   Serial2.println(rx_str2);
   Serial2.println(rx_str3);
   Serial2.println(rx_str4);
+
+  motor_output();
+
 }
 
 void REG_SEND(void){
@@ -237,37 +237,5 @@ void REG_SEND(void){
   Serial2.println(String(sen_ene));
   Serial2.println(String(sen_bld));
   Serial2.println(String(sen_whl));
-}
-
-void LED_BLINK(void){
-  // 現在の時間を取得
-  unsigned long currentMillis = millis();
-
-  // フラグに応じてLEDの動作を制御
-  switch (led_flag) {
-    case 0:
-      digitalWrite(LED_BUILTIN, LOW); //ボードLED消灯
-      break;
-    case 1:
-      digitalWrite(LED_BUILTIN, HIGH); //ボードLED点灯
-      break;
-    case 2:
-      // フラグが2の場合、500ms周期で点滅
-      if (currentMillis - previousMillis >= interval1) {
-        previousMillis = currentMillis;
-        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // LED反転
-      }
-      break;
-    case 3:
-      // フラグが3の場合、1000ms周期で点滅
-      if (currentMillis - previousMillis >= interval2) {
-        previousMillis = currentMillis;
-        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // LED反転
-      }
-      break;
-    default:
-      // 未定義のフラグ値の場合、何もしない
-      break;
-  }
 }
 
