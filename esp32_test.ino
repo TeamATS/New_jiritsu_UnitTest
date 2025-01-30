@@ -9,7 +9,7 @@
 //------ グローバル変数設定 ------
 unsigned int answerback_deta = 0;
 unsigned int answerback_deta_prev = 0;
-
+unsigned long num = 0;
 int serial_trans1 = 0;
 int serial_trans2 = 0;
 int serial_trans3 = 0;
@@ -64,28 +64,29 @@ void serial_comu_micom() {
     Serial.println(c);   // 文字列出力(USBシリアル)
   }
 
-  if (Serial1.available()) {  // 受信データ(Serial1)があれば
-    rx_str1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+  if (Serial0.available()) {  // 受信データ(Serial1)があれば
+    rx_str1 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
 
     if (rx_str1.equals("M\r") == 1) {
       //文字列比較
       //https://greenhornprofessional.hatenablog.com/entry/2020/09/13/223155
 
-      rx_sen1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_sen2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_sen3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_sen1 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_sen2 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_sen3 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
 
       Serial.print("rx_sen1:");
       Serial.print(rx_sen1);
-      Serial.print(",");
+      Serial.print(",  ");
       Serial.print("rx_sen2:");
       Serial.print(rx_sen2);
-      Serial.print(",");
+      Serial.print(",  ");
       Serial.print("rx_sen3:");
-      Serial.print(rx_sen3);
+      Serial.println(rx_sen3);
+      Serial.println();
 
-      while (Serial1.available()) {
-        Serial1.read();
+      while (Serial0.available()) {
+        Serial0.read();
       }
       // 文字列を整数に変換する
 
@@ -114,13 +115,13 @@ void serial_comu_micom() {
 
     }
     else if (rx_str1.equals("D\r") == 1) {
-      rx_dbg1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_dbg2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_dbg3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_dbg4 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_dbg5 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      while (Serial1.available()) {
-        Serial1.read();
+      rx_dbg1 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_dbg2 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_dbg3 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_dbg4 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_dbg5 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      while (Serial0.available()) {
+        Serial0.read();
       }
       //debug_signal_incomig_Flag = 1;
       Serial.print(rx_dbg1);
@@ -138,11 +139,11 @@ void serial_comu_micom() {
 
     }
     else if (rx_str1.equals("A\r") == 1) {
-      rx_sak1 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_sak2 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      rx_sak3 = Serial1.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
-      while (Serial1.available()) {
-        Serial1.read();
+      rx_sak1 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_sak2 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      rx_sak3 = Serial0.readStringUntil('\n');  // 受信データを\nの手前まで取得(Serial1)
+      while (Serial0.available()) {
+        Serial0.read();
       }
 
 
@@ -176,8 +177,8 @@ void serial_comu_micom() {
       }
       //Serial.print(mqtt_incoming_Flag);
     } else {
-      while (Serial1.available()) {
-        Serial1.read();
+      while (Serial0.available()) {
+        Serial0.read();
       }
     }
   }
@@ -190,14 +191,21 @@ void setup() {
 
   //Serial通信用
   Serial.begin(115200);     // PC通信 通信速度
-  Serial1.begin(38400);     // マイコン間通信 通信速度
+  Serial0.begin(38400);     // マイコン間通信 通信速度
 
 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  if(num >= 500){
+    Serial0.println("AAAA");
+    num = 0;
+  }else{
+    num++;
+  }
 
+//  delay(5);
   serial_comu_micom();
 
 }
