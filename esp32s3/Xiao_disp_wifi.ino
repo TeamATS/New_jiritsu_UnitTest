@@ -5,6 +5,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "secret_wifi.h"
+//#include "display_esp32s3.ino"
+#include <LovyanGFX.hpp>
 
 
 //------ 定数設定 ------
@@ -71,14 +73,17 @@ float batt_volt = 0;
 float batt_volt_filt = 0;
 int ad_in = 0;
 
-//display設定
-int oled_init_disp = 1;
-int oled_init_count = 0;
+long tgt_sakusen_num = 0;
+long tgt_sakusen_num_kari = 0;
+int digits[6];
 
 //以下のユーザモードは、初期のmode値で決める。４bitのスイッチ
 int user_mode = 0;  //0---debug . 1---闘魂M .  2---影武者R 　3---闘魂K 　4---下田
 int ui_screen = 0;
-boolean ui_userselect = 0;  //ユーザの設定など条件で値を決める。 0---ユーザ未決定  1--ユーザ決定
+int ui_screen_sentaku1 = 0;
+
+boolean ui_mode_change = 0;
+//boolean ui_userselect = 0;  //ユーザの設定など条件で値を決める。 0---ユーザ未決定  1--ユーザ決定 notuse
 
 //int WL_IDLE_STATUS=0;//250326
 //int status = WL_IDLE_STATUS;     // the Wifi radio's status
@@ -102,538 +107,234 @@ boolean button_3_old = 1;
 boolean button_1_downedge = 0;
 boolean button_2_downedge = 0;
 boolean button_3_downedge = 0;
+//timer割り込み設定----------------------------------------------
+hw_timer_t *timer = NULL;
+bool timer_flag = false;
 
-//------ 関数定義 ------
+int counter;
+int counter_1;
+int counter_2;
+int counter_3;
+int counter_mqtt;
+int counter_5;
+int counter_6;
+int counter_8;
+
+int counter_sf;
+
+//display設定--------------------------------------------------
+int oled_init_disp = 1;
+int oled_init_count = 0;
+
+// 独自の設定を行うクラスを、LGFX_Deviceから派生して作成します。
+// クラス名はLGFXからLGFX_SSD1306に変更してます。（コンストラクタ名も）
+class LGFX_SSD1306 : public lgfx::LGFX_Device {
+    // 接続するOLED表示器にあったインスタンスを準備します。
+    lgfx::Panel_SSD1306   _panel_instance;  // SSD1306を使用する場合
+    lgfx::Bus_I2C   _bus_instance;          // I2Cバスのインスタンス (ESP32のみ)
+
+    // コンストラクタを作成し、ここで各種設定を行います。
+  public:
+    LGFX_SSD1306() {  // コンストラクタ名はクラス名に合わせてLGFXからLGFX_SSD1306に変更してます。（クラス名と同じにする）
+      { // バス制御の設定を行います。
+        auto cfg = _bus_instance.config();  // I2Cバス設定用の構造体を取得します。
+        cfg.i2c_port    = 1;          // 使用するI2Cポートを選択 (0 or 1)
+        cfg.freq_write  = 400000;     // 送信時のクロック
+        cfg.freq_read   = 400000;     // 受信時のクロック
+        cfg.pin_sda     = 5;         // SDAを接続しているピン番号
+        cfg.pin_scl     = 6;         // SCLを接続しているピン番号
+        cfg.i2c_addr    = 0x3C;       // I2Cデバイスのアドレス
+
+        _bus_instance.config(cfg);    // 設定値をバスに反映します。
+        _panel_instance.setBus(&_bus_instance); // バスをパネルにセットします。
+      }
+      { // 表示パネル制御の設定を行います。
+        // 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
+        auto cfg = _panel_instance.config();  // 表示パネル設定用の構造体を取得します。
+        cfg.memory_width  = 128;      // ドライバICがサポートしている最大の幅
+        cfg.memory_height =  64;      // ドライバICがサポートしている最大の高さ
+
+        _panel_instance.config(cfg);  // 設定をパネルに反映
+      }
+      setPanel(&_panel_instance);     // 使用するパネルをセットします。
+    }
+};
+static LGFX_SSD1306 lcd; // LGFX_SSD1306のインスタンス（クラスLGFX_SSD1306を使ってlcdでいろいろできるようにする）を作成
+static LGFX_Sprite canvas(&lcd);  // スプライトを使うためのLGFX_Spriteのインスタンスを作成
+
+
+
+
+//------ 関数定義 --------------------------------------------------------
 void callback(char *topic, byte *payload, unsigned int length);
+void serial_comu_micom() ;
+void testdrawchar();
+void onTimer(void* arg);
 
-//--display---
-void testdrawchar(uint8_t offset = 0) {
-  display.clearDisplay();
-  display.display();
-  display.setTextSize(1);              // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);             // Start at top-left corner
-  display.cp437(true);                 // Use full 256 char 'Code Page 437' font
-  for (uint8_t i = 0; i < 170; i++)
-    display.write((uint8_t)((i + offset) % 26 + 65));// 65:A to 90:Z
-  display.display();
-}
-void oled_disp_control() {
 
-  //画面の遷移control
-  if (ui_screen == 0 ) {
-    if (button_1_downedge) {
-      ui_screen = 6;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 1;
-    }
-  } else   if (ui_screen == 1 ) {
-    if (button_1_downedge) {
-      ui_screen = 6;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 2;
-    }
-  } else   if (ui_screen == 2 ) {
-    if (button_1_downedge) {
-      ui_screen = 1;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 3;
-    }
-  } else   if (ui_screen == 3 ) {
-    if (button_1_downedge) {
-      ui_screen = 2;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 4;
-    }
-  } else   if (ui_screen == 4 ) {
-    if (button_1_downedge) {
-      ui_screen = 3;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 5;
-    }
-  } else   if (ui_screen == 5 ) {
-    if (button_1_downedge) {
-      ui_screen = 4;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 6;
-    }
-  } else   if (ui_screen == 6 ) {
-    if (button_1_downedge) {
-      ui_screen = 5;
-    }
-    else if (button_3_downedge) {
-      ui_screen = 1;
-    }
+
+//------ 関数 --------------------------------------------------------
+
+void setup() {
+  // 本体初期化
+  delay(100);
+
+  //Serial通信用-------------------------
+  Serial.begin(115200);     // PC通信 通信速度
+  Serial0.begin(38400);     // マイコン間通信 通信速度
+
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 allocation failed");
+    for (;;); // Don't proceed, loop forever
   }
 
-  switch (ui_screen) {
-    case 0://電源投入後の画面
-      oled_stop_state();
-      break;
-    case 1://待機状態の画面
-      oled_wait_state();
-      break;
-    case 2://センサ表示画面
-      oled_disp_robo_sens_only();
-      break;
-    case 3://作戦選択の画面
-      oled_sakusen_input();
-      break;
-    case 5://GO指示の画面
-      oled_go_manual_sw();
-      break;
-    case 6://ユーザ選択の画面
-      oled_machine_name();
-      break;
-    case 80://GO状態の画面
-      oled_go_state();
-      break;
-    case 90://STOP状態の画面
-      oled_stop_state();
-      break;
-  }
+  //------------------------
+  pinMode(BTN1, INPUT);
+  pinMode(BTN2, INPUT);
+  pinMode(BTN3, INPUT_PULLUP);
 
-  ;
-}
-//-----------------------
-void oled_sakusen_input() {
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(1);  // 文字サイズ（1）
-  display.setCursor(0, 0);              // 表示開始位置左上角（X,Y）
-  display.printf("manual sakusen setting");  // SOC表示
-  display.setTextSize(2);  // 文字サイズ（1）
-  display.setCursor(2, 30);              // 表示開始位置左上角（X,Y）
-  display.setCursor(4, 10);              // 表示開始位置左上角（X,Y）
-  display.printf("000000\n");  // SOC表示
-  display.display();  // 表示実行 
-}
-//-----------------------
-void oled_go_manual_sw() {
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(1);  // 文字サイズ（1）
-  display.setCursor(0, 0);              // 表示開始位置左上角（X,Y）
-  display.printf("manual GO setting");  // SOC表示
-  display.setTextSize(3);  // 文字サイズ（1）
-  display.setCursor(0, 10);              // 表示開始位置左上角（X,Y）
-  display.printf("  wait\n GO");  // SOC表示
+  //wifi
+  while (!Serial && millis() < 5000)
+    ;
 
-  display.display();  // 表示実行 
-}
-
-void oled_wait_state(){
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(4);  // 文字サイズ（1）
-  display.setCursor(2 , 30);              // 表示開始位置左上角（X,Y）
-  display.printf("%02d%%\n", state_SOC);  // SOC表示
-
-    //MQTT 通信情報表示
-    if (wifi_Mqtt_state == 0) {
-      display.setTextSize(2);     // 文字サイズ（2）
-      display.printf("NG");       // SOC表示
-      display.setTextSize(1);     // 文字サイズ（2）
-      display.setCursor(90, 52);  // 表示開始位置左上角（X,Y）
-      display.printf("WIFI");     // SOC表示
-    } else if (wifi_Mqtt_state == 1) {
-      display.setTextSize(2);  // 文字サイズ（2）
-      display.printf("NG");
-      display.setTextSize(1);     // 文字サイズ（2）
-      display.setCursor(90, 52);  // 表示開始位置左上角（X,Y）
-      display.printf("MQTT");     // SOC表示
-    } else if (wifi_Mqtt_state == 3) {
-      display.setTextSize(1);                 // 文字サイズ（2）
-      display.setCursor(90, 42);              // 表示開始位置左上角（X,Y）
-      display.printf("%02d", answerback_deta);  // SOC表示
-    }
-
-  display.display();  // 表示実行 
-}
-void oled_go_state() {
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(4);  // 文字サイズ（1）
-  display.setCursor(2, 30);              // 表示開始位置左上角（X,Y）
-  display.printf("GO");       // SOC表示
-  display.display();  // 表示実行
-}
-void oled_stop_state() {
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(4);  // 文字サイズ（1）
-  display.setCursor(2, 30);              // 表示開始位置左上角（X,Y）
-  display.printf("STOP");       // SOC表示
-  display.display();  // 表示実行
-}
-//-----------------------
-void oled_machine_name() {
-  int sensorValue ;
-  int haba;
   func_machine_identify();
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(2);  // 文字サイズ（1）
-  display.setCursor(2, 30);              // 表示開始位置左上角（X,Y）
-  display.printf(machineName);       // SOC表示
 
-  sensorValue = analogRead(AD_MACHINE_IDENTIFY); //0~4096
-  haba = (sensorValue * 60) / 4096;
-  display.drawRect(1, 10, 65, 10, WHITE);
-  display.fillRect(3, 12, haba, 8, WHITE);
+  display.display();
+  delay(1000); // Pause for 2 seconds
+  display.clearDisplay();
 
-  display.display();  // 表示実行
-}
-//-----------------------
-void oled_disp_initial() {
-  char WORD[] = "team ATS    ";
+  //LCD初期設定-------------------------
+  lcd.init();                                     // 表示器初期化
+  canvas.setTextWrap(false);                      // 右端到達時のカーソル折り返しを禁止(true)で許可
+  canvas.createSprite(lcd.width(), lcd.height()); // スプライト用の仮想画面を画面幅を取得して準備
+  lcd.setRotation(2);
 
-  oled_init_count++;
-  /*DIPSW の表示*/
-  display.clearDisplay();  // 表示クリア
-  display.setTextSize(2);  // 文字サイズ（1）
+  // check for the WiFi module:
+  setupWifi();
 
-  for (int i = 0; i < oled_init_count; i++) {
-    display.setCursor(i * 12, 30);  // 表示開始位置左上角（X,Y）
-    display.printf("%c", WORD[i]);  // カウント数
-  }
-  display.setTextSize(1);  // 文字サイズ（1）
 
-  for (int i = 0; i < 11; i++) {
-    //ユーザモードの表示
-    display.setCursor(i * 6, 50);  // 表示開始位置左上角（X,Y）
-    if (user_mode == 0) {
-      //display.printf("%c", machineName0[i]);  // カウント数
+  // タイマー構成の定義-------------------------
+  esp_timer_create_args_t timer_args = {
+    .callback = &onTimer,
+    .arg = NULL,
+    .dispatch_method = ESP_TIMER_TASK,
+    .name = "1ms_timer"
+  };
 
-    } else if (user_mode == 1) {
-      // display.printf("%c", machineName1[i]);  // カウント数
-    } else if (user_mode == 2) {
-      // display.printf("%c", machineName2[i]);  // カウント数
-    }
-  }
-  // user_mode=2;
-  display.display();  // 表示実行
+  esp_timer_handle_t timer;
+  esp_timer_create(&timer_args, &timer);
+  esp_timer_start_periodic(timer, 1000);  // 1000us = 1msごとに実行
 
-  if (oled_init_count > 11) {
-    oled_init_disp = 0;
-  }
+
+  //display.clearDisplay();
+  //testdrawchar();
 }
 
+//------ 関数 loop--------------------------------------------------------
+void loop() {
 
-
-
-void oled_disp_robo_sens_only() {
-  display.clearDisplay();       // 表示クリア
-
-  int L2x = 6 + 15;
-  int L1x = 18 + 15;
-  int C1x = 30 + 15;
-  int R1x = 42 + 15;
-  int R2x = 54 + 15;
-  int S1y = 6 + 5;
-  int S2y = 14 + 7;  //S1y+8
-
-  //対物の位置（縦位置）
-  int Tcfy = 26 + 10;
-  int Tcry = 34 + 12;
-  int T1y = 30 + 12;
-  int T2y = 38 + 14;
-
-  int HLx = 6;
-  int HRx = 54 + 30;
-  int H1y = 6;
-  int H2y = 57;
-
-  unsigned int hyoji_date;
-
-    display.drawRect(13, 5, 65, 23, WHITE);   // 四角
-    display.drawRect(13, 30, 65, 30, WHITE);  // 四角
-
-    /*------------照度センサ----------------------*/
-    display.drawCircle(L2x, S1y, 4, WHITE);  // 円
-    display.drawCircle(L1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(C1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(R1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(R2x, S1y, 4, WHITE);  // 円
-
-    display.drawCircle(L1x, S2y, 4, WHITE);  // 円
-    display.drawCircle(R1x, S2y, 4, WHITE);  // 円
-
-    /*------------対物センサ----------------------*/
-    display.drawCircle(L2x, T1y, 4, WHITE);   // 円
-    display.drawCircle(L1x, T1y, 4, WHITE);   // 円
-    display.drawCircle(C1x, Tcfy, 4, WHITE);  // 円
-    display.drawCircle(R1x, T1y, 4, WHITE);   // 円
-    display.drawCircle(R2x, T1y, 4, WHITE);   // 円
-
-    display.drawCircle(L2x, T2y, 4, WHITE);   // 円
-    display.drawCircle(C1x, Tcry, 4, WHITE);  // 円
-    display.drawCircle(R2x, T2y, 4, WHITE);   // 円
-
-    /*-----------白線センサ-----------------------*/
-    display.drawCircle(HLx, H1y, 4, WHITE);  // 円
-    display.drawCircle(HRx, H1y, 4, WHITE);  // 円
-    display.drawCircle(HLx, H2y, 4, WHITE);  // 円
-    display.drawCircle(HRx, H2y, 4, WHITE);  // 円
-
-
-    /*----------------------------------*/
-    /*対物センサ*/
-    /*対物センサの表示　遠距離*/
-    if (sens_object[0] == 1) {
-      display.fillCircle(L2x, T2y, 2, WHITE);  // L1
+  if (0) {//シリアル通信動作テスト用　esp32 -> blackpill 500ms, AAA trans
+    if (num >= 500) {
+      Serial0.println("AAAA");
+      num = 0;
+    } else {
+      num++;
     }
-    if (sens_object[1] == 1) {
-      display.fillCircle(L2x, T1y, 2, WHITE);  //L2
-    }
-    if (sens_object[2] == 1) {
-      display.fillCircle(L1x, T1y, 2, WHITE);  // L3
-    }
-    if (sens_object[3] == 1) {
-      display.fillCircle(C1x, Tcfy, 2, WHITE);  //C1
-    }
-    if (sens_object[4] == 1) {
-      display.fillCircle(C1x, Tcry, 2, WHITE);  // C2
-    }
-    if (sens_object[5] == 1) {
-      display.fillCircle(R1x, T1y, 2, WHITE);  // R3
-    }
-    if (sens_object[6] == 1) {
-      display.fillCircle(R2x, T1y, 2, WHITE);  // R2
-    }
-    if (sens_object[7] == 1) {
-      display.fillCircle(R2x, T2y, 2, WHITE);  // R1
-    }
-    /*----------------------------------*/
-    /*照度センサ*/
-    if (sens_blade_shoudo[0] == 1) {
-      display.fillCircle(L2x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[1] == 1) {
-      display.fillCircle(L1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[2] == 1) {
-      display.fillCircle(C1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[3] == 1) {
-      display.fillCircle(R1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[4] == 1) {
-      display.fillCircle(R2x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    /*----------------------------------*/
-    /*ブレード上スイッチ*/
-    if (sens_blade_sw[0] == 1) {
-      display.fillCircle(L1x, S2y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_sw[1] == 1) {
-      display.fillCircle(R1x, S2y, 2, WHITE);  // 円（塗り潰し）
-    }
-
-    /*----------------------------------*/
-    /*白線センサ*/
-    if (sens_white[0] == 1) {
-      display.fillCircle(HLx, H1y, 2, WHITE);  // FL
-    }
-    if (sens_white[2] == 1) {
-      display.fillCircle(HRx, H1y, 2, WHITE);  // FR
-    }
-    if (sens_white[1] == 1) {
-      display.fillCircle(HLx, H2y, 2, WHITE);  // RL
-    }
-    if (sens_white[3] == 1) {
-      display.fillCircle(HRx, H2y, 2, WHITE);  // RR
-    }
-    /*----------------------------------*/
-
-
-
-    //SOC表示
-    display.setTextSize(2);                 // 文字サイズ（2）
-    display.setCursor(90, 16);              // 表示開始位置左上角（X,Y）
-    display.printf("%02d%%\n", state_SOC);  // SOC表示
-
-    display.setCursor(90, 35);  // 表示開始位置左上角（X,Y）
-
-
-  display.display();  // 表示実行
-}
-
-
-void oled_disp_robo_sens_ver3() {
-  display.clearDisplay();       // 表示クリア
-  int SW1 = digitalRead(BTN1);  // スイッチの状態を判定
-  int SW2 = digitalRead(BTN2);  // スイッチの状態を判定
-  int SW3 = digitalRead(BTN3);  // スイッチの状態を判定
-
-  int L2x = 6 + 15;
-  int L1x = 18 + 15;
-  int C1x = 30 + 15;
-  int R1x = 42 + 15;
-  int R2x = 54 + 15;
-  int S1y = 6 + 5;
-  int S2y = 14 + 7;  //S1y+8
-
-  //対物の位置（縦位置）
-  int Tcfy = 26 + 10;
-  int Tcry = 34 + 12;
-  int T1y = 30 + 12;
-  int T2y = 38 + 14;
-
-  int HLx = 6;
-  int HRx = 54 + 30;
-  int H1y = 6;
-  int H2y = 57;
-
-  unsigned int hyoji_date;
-
-  if (dekamoji_Flag == 1) {
-    display.setTextSize(3);                 // 文字サイズ（3）
-    display.setCursor(2, 30);              // 表示開始位置左上角（X,Y）
-    display.printf("%02d", answerback_deta);  // SOC表示
-  } else if (dekamoji_Flag == 0) {
-    display.drawRect(13, 5, 65, 23, WHITE);   // 四角
-    display.drawRect(13, 30, 65, 30, WHITE);  // 四角
-    //display.drawRect(1, 44,  60, 20, WHITE);  // 四角
-
-
-    /*------------照度センサ----------------------*/
-    display.drawCircle(L2x, S1y, 4, WHITE);  // 円
-    display.drawCircle(L1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(C1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(R1x, S1y, 4, WHITE);  // 円
-    display.drawCircle(R2x, S1y, 4, WHITE);  // 円
-
-    display.drawCircle(L1x, S2y, 4, WHITE);  // 円
-    display.drawCircle(R1x, S2y, 4, WHITE);  // 円
-
-    /*------------対物センサ----------------------*/
-    display.drawCircle(L2x, T1y, 4, WHITE);   // 円
-    display.drawCircle(L1x, T1y, 4, WHITE);   // 円
-    display.drawCircle(C1x, Tcfy, 4, WHITE);  // 円
-    display.drawCircle(R1x, T1y, 4, WHITE);   // 円
-    display.drawCircle(R2x, T1y, 4, WHITE);   // 円
-
-    display.drawCircle(L2x, T2y, 4, WHITE);   // 円
-    display.drawCircle(C1x, Tcry, 4, WHITE);  // 円
-    display.drawCircle(R2x, T2y, 4, WHITE);   // 円
-
-    /*-----------白線センサ-----------------------*/
-    display.drawCircle(HLx, H1y, 4, WHITE);  // 円
-    display.drawCircle(HRx, H1y, 4, WHITE);  // 円
-    display.drawCircle(HLx, H2y, 4, WHITE);  // 円
-    display.drawCircle(HRx, H2y, 4, WHITE);  // 円
-
-
-    /*----------------------------------*/
-    /*対物センサ*/
-    /*対物センサの表示　遠距離*/
-    if (sens_object[0] == 1) {
-      display.fillCircle(L2x, T2y, 2, WHITE);  // L1
-    }
-    if (sens_object[1] == 1) {
-      display.fillCircle(L2x, T1y, 2, WHITE);  //L2
-    }
-    if (sens_object[2] == 1) {
-      display.fillCircle(L1x, T1y, 2, WHITE);  // L3
-    }
-    if (sens_object[3] == 1) {
-      display.fillCircle(C1x, Tcfy, 2, WHITE);  //C1
-    }
-    if (sens_object[4] == 1) {
-      display.fillCircle(C1x, Tcry, 2, WHITE);  // C2
-    }
-    if (sens_object[5] == 1) {
-      display.fillCircle(R1x, T1y, 2, WHITE);  // R3
-    }
-    if (sens_object[6] == 1) {
-      display.fillCircle(R2x, T1y, 2, WHITE);  // R2
-    }
-    if (sens_object[7] == 1) {
-      display.fillCircle(R2x, T2y, 2, WHITE);  // R1
-    }
-    /*----------------------------------*/
-    /*照度センサ*/
-    if (sens_blade_shoudo[0] == 1) {
-      display.fillCircle(L2x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[1] == 1) {
-      display.fillCircle(L1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[2] == 1) {
-      display.fillCircle(C1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[3] == 1) {
-      display.fillCircle(R1x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_shoudo[4] == 1) {
-      display.fillCircle(R2x, S1y, 2, WHITE);  // 円（塗り潰し）
-    }
-    /*----------------------------------*/
-    /*ブレード上スイッチ*/
-    if (sens_blade_sw[0] == 1) {
-      display.fillCircle(L1x, S2y, 2, WHITE);  // 円（塗り潰し）
-    }
-    if (sens_blade_sw[1] == 1) {
-      display.fillCircle(R1x, S2y, 2, WHITE);  // 円（塗り潰し）
-    }
-
-    /*----------------------------------*/
-    /*白線センサ*/
-    if (sens_white[0] == 1) {
-      display.fillCircle(HLx, H1y, 2, WHITE);  // FL
-    }
-    if (sens_white[2] == 1) {
-      display.fillCircle(HRx, H1y, 2, WHITE);  // FR
-    }
-    if (sens_white[1] == 1) {
-      display.fillCircle(HLx, H2y, 2, WHITE);  // RL
-    }
-    if (sens_white[3] == 1) {
-      display.fillCircle(HRx, H2y, 2, WHITE);  // RR
-    }
-    /*----------------------------------*/
-
-
-    /*DIPSW の表示*/
- //   display.setTextSize(1);                                                                // 文字サイズ（1）
- //   display.setCursor(90, 1);                                                              // 表示開始位置左上角（X,Y）
- //   display.printf("SW%1d%1d%1d%1d", state_sw[0], state_sw[1], state_sw[2], state_sw[3]);  // カウント数
-
-
-    //SOC表示
-    display.setTextSize(2);                 // 文字サイズ（2）
-    display.setCursor(90, 16);              // 表示開始位置左上角（X,Y）
-    display.printf("%02d%%\n", state_SOC);  // SOC表示
-
-    display.setCursor(90, 35);  // 表示開始位置左上角（X,Y）
-
-    //MQTT 通信情報表示
-    if (wifi_Mqtt_state == 0) {
-      display.setTextSize(2);     // 文字サイズ（2）
-      display.printf("NG");       // SOC表示
-      display.setTextSize(1);     // 文字サイズ（2）
-      display.setCursor(90, 52);  // 表示開始位置左上角（X,Y）
-      display.printf("WIFI");     // SOC表示
-    } else if (wifi_Mqtt_state == 1) {
-      display.setTextSize(2);  // 文字サイズ（2）
-      display.printf("NG");
-      display.setTextSize(1);     // 文字サイズ（2）
-      display.setCursor(90, 52);  // 表示開始位置左上角（X,Y）
-      display.printf("MQTT");     // SOC表示
-    } else if (wifi_Mqtt_state == 3) {
-      display.setTextSize(1);                 // 文字サイズ（2）
-      display.setCursor(90, 42);              // 表示開始位置左上角（X,Y）
-      display.printf("%02d", answerback_deta);  // SOC表示
-    }
-    else if (wifi_Mqtt_state == 99) {
-      display.setTextSize(1);                 // 文字サイズ（2）
-      display.printf("FIX");       // SOC表示
-    }
+    delay(1);
   }
 
-  display.display();  // 表示実行
+  //  serial_comu_micom();
+  // oled_disp_robo_sens_ver3();
+  // oled_disp_control();
+  //oled_disp_control_lav();
+
+  loop_count_up_by_timer();
+  loop_schedule();
 }
+//------ 関数 --------------------------------------------------------
+/* タイマー割り込み処理 */
+void onTimer(void* arg)
+{
+  timer_flag = true;
+}
+
+//------ 関数 --------------------------------------------------------
+void loop_count_up_by_timer() {
+  if (timer_flag)
+  {
+    counter++;
+    counter_1++;//シリアル通信の確認
+    counter_2++;//液晶表示
+    counter_3++;
+    counter_mqtt++;
+    counter_6++;
+    counter_8++;
+    timer_flag = false;
+
+  }
+}
+
+void loop_schedule(void) {
+
+  //OLED液晶表示
+  if (counter_2 > 50) {
+    //    oled_disp_robo_sens_ver3();
+    func_button_input();
+    oled_disp_control_lav();
+    counter_2 = 0;
+  }
+
+  //シリアル通信の確認
+  if (counter_1 >= 2) {
+    //serial_comu_test();
+    counter_1 = 0;
+    //    Serial.println("");
+  }
+
+  //BAT電圧チェック
+  if (counter_3 > 1000) {
+    button_BAT_read();
+    counter_3 = 0;
+  }
+
+  if (mqtt_incoming_Flag == 1 && counter_6 > 200) {
+    //serial_comu_soushin_remocon2();
+    counter_6 = 0;
+    //MQTTでメッセージが来た時には、50msecごとに送信する。
+    //アンサーバック値が来たときに、mqtt_incoming_Flagを下げる。
+  }
+
+  if (counter_8 > 3000) {
+    if (Com_Err_Flag) {
+      if (Com_Err_Flag_naiyou == 0) {
+        //serial_comu_soushin_without_remocon(01, 01, 01); //寸動
+        Com_Err_Flag_naiyou = 1;
+      } else {
+        //serial_comu_soushin_without_remocon(90, 90, 05); //GO
+        Com_Err_Flag_naiyou = 0;
+      }
+    }
+    counter_8 = 0;
+  }
+
+
+  //loop1からのコピー
+  if (Com_Err_Flag) {
+    //MQTT無効時
+    counter_mqtt = 0;
+  } else {
+    //MQTT有効時
+    if (counter_mqtt > 100) {
+      //mqttClient.update();  // should be called
+      client.loop();
+      counter_mqtt = 0;
+    }
+    func_mqtt_publish_task();
+  }
+}
+
+//------ 関数 --------------------------------------------------------
 
 //--シリアル通信---
 void serial_comu_micom() {
@@ -778,60 +479,6 @@ void serial_comu_micom() {
     }
   }
 }
-
-
-void setup() {
-  // 本体初期化
-  delay(100);
-
-  //Serial通信用
-  Serial.begin(115200);     // PC通信 通信速度
-  Serial0.begin(38400);     // マイコン間通信 通信速度
-
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("SSD1306 allocation failed");
-    for (;;); // Don't proceed, loop forever
-  }
-
-  pinMode(BTN1, INPUT);
-  pinMode(BTN2, INPUT);
-  pinMode(BTN3, INPUT_PULLUP);
-
-  //wifi
-  while (!Serial && millis() < 5000)
-    ;
-
-  func_machine_identify();
-
-
-  display.display();
-  delay(2000); // Pause for 2 seconds
-  display.clearDisplay();
-
-  // check for the WiFi module:
-  setupWifi();
-
-  display.clearDisplay();
-  testdrawchar();
-}
-
-void loop() {
-  //    Serial.println(analogRead(PIN_MACHINE_AD));
-  // put your main code here, to run repeatedly:
-  if (num >= 500) {
-    Serial0.println("AAAA");
-    num = 0;
-  } else {
-    num++;
-  }
-
-  delay(1);
-  func_button_input();
-  //  serial_comu_micom();
-  // oled_disp_robo_sens_ver3();
-  oled_disp_control();
-}
 //-----------------------------------------------
 void func_button_input() {
   boolean button_1;
@@ -906,6 +553,9 @@ void func_machine_identify()
       mqtt_server = mqtt_server_matsu;
       PubTopic = PubTopic_matsu;
       machineName = machineName_matsu;
+      MQTT_M = MQTT_M_TM;
+      MQTT_U = MQTT_U_TM;
+      MQTT_P = MQTT_P_TM;
       break;
     case 2:
       ssid = ssid_koza;
@@ -913,7 +563,9 @@ void func_machine_identify()
       mqtt_server = mqtt_server_koza;
       PubTopic = PubTopic_koza;
       machineName = machineName_koza;
-
+      MQTT_M = MQTT_M_KR;
+      MQTT_U = MQTT_U_KR;
+      MQTT_P = MQTT_P_KR;
       break;
     case 3:
       ssid = ssid_kana;
@@ -962,6 +614,7 @@ void setupWifi()
   } else {
     wifi_Mqtt_state = 1;
     Serial.println("wifi_ok");
+    //MQTT設定
     client.setServer(mqtt_server, 1883);
     client.setCallback(callback); // Sets the message callback function.  设置消息回调函数
     Serial.printf("mq_setup is ok.\n");
@@ -971,7 +624,7 @@ void setupWifi()
 
 //------------------------------------------------
 
-void callback(char *topic, byte *payload, unsigned int length)
+void callback(char *topic, byte * payload, unsigned int length)
 {
   //canvasMQTT.fillSprite(TFT_GREEN);
   //canvasMQTT.setCursor(20, 20);
@@ -986,3 +639,82 @@ void callback(char *topic, byte *payload, unsigned int length)
   //canvasMQTT.pushSprite(&canvas1, 0, 0);
   //canvas1.pushSprite(&display, 100, 100);
 }
+
+void button_BAT_read() {
+
+  int ad_value;
+  long temp;
+
+  //  state_SOC
+  ad_value = analogRead(AD_BATTERY_VOLT);
+  ad_in = ad_value;
+  batt_volt = 4.13 * ad_value / (1023 / 3.3);
+  temp = 116 * ad_value - 95200;
+
+  batt_volt_filt = ((float)temp - batt_volt_filt) / 10 + batt_volt_filt;
+  if (batt_volt_filt < 0) {
+    batt_volt = 0;
+  } else if (batt_volt_filt > 10000) {
+    batt_volt_filt = 10000;
+  }
+
+
+  state_SOC = (int)(batt_volt_filt / 100);
+  if (state_SOC > 100) {
+    state_SOC = 100;
+  } else if (state_SOC < 0) {
+    state_SOC = 0;
+  }
+
+  // 5V 1023
+  // 0V 0
+  //11.7V 58%  -- 871     y=44/38 *IN -952
+  //11.1V 14%  -- 833     y= 1.16 * IN - 952;
+  //分圧　 15k/(15k+47k) = 1/4.13倍
+}
+
+//-MQTT-publish----------------------------------------------
+void func_mqtt_publish_task() {
+  if (answerback_incomig_Flag == 1) {
+    //アンサーバック値をMQTTでリモコン側に返す。
+    publish_message_answerback();
+    answerback_incomig_Flag = 0;
+  }
+
+  if (debug_signal_incomig_Flag == 1) {
+    //デバッグ値をMQTTでリモコン側に返す。
+    publish_message_debug();
+    debug_signal_incomig_Flag = 0;
+  }
+
+  if (sensor_signal_incomig_Flag == 1) {
+    //デバッグ値をMQTTでリモコン側に返す。
+    publish_message_sens();
+    sensor_signal_incomig_Flag = 0;
+  }
+}
+
+void publish_message_answerback() {
+  char counterStr[6];  // 必要に応じて適切なサイズに調整
+  int count_number;
+
+  count_number = (serial_trans1 * 10000) + (serial_trans2 * 100) + serial_trans3;
+  //パブリッシュの実施
+  sprintf(counterStr, "%d", count_number);
+  //mqttClient.publish(PubTopic0, counterStr);  // Publishes a message to the specified
+  client.publish(PubTopic, counterStr);
+  Serial.println("Picoからサーバへ送信");
+}
+
+void publish_message_sens() {
+  client.publish(PubTopic_s1, rx_sen1.c_str());
+  client.publish(PubTopic_s2, rx_sen2.c_str());
+  client.publish(PubTopic_s3, rx_sen3.c_str());
+}
+
+void publish_message_debug() {
+  client.publish(PubTopic_d1, rx_dbg1.c_str());
+  client.publish(PubTopic_d2, rx_dbg2.c_str());
+  client.publish(PubTopic_d3, rx_dbg3.c_str());
+}
+
