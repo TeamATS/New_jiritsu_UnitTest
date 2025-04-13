@@ -1,9 +1,9 @@
-const char *machineName ="_debug";
-const char *const machineName_1 ="debug";
-const char *const machineName_matsu ="TUKON M";
-const char *const machineName_koza ="KAGE R";
-const char *const machineName_kana ="TUKON K";
-const char *const machineName_shimo ="HANAYASHA";
+const char *machineName = "_debug_mode";
+const char *const machineName_1 = "_debug_mode";
+const char *const machineName_matsu = "TUKON M";
+const char *const machineName_koza = "KAGE R";
+const char *const machineName_kana = "TUKON K";
+const char *const machineName_shimo = "HANAYASHA";
 
 
 
@@ -48,7 +48,7 @@ const char *SubTopic = "/rm";
 
 const char *const PubTopic_1 = "/debug_rma"; // Topic to publish
 const char *const PubTopic_matsu = "/tm_rma"; // Topic to publish
-const char *const PubTopic_koza = "/kr_rma";  // Topic to publish
+const char *const PubTopic_koza =  "/kr_rma";  // Topic to publish
 
 const char *const SubTopic_1 = "/debug_rm"; // Topic to subscribe
 const char *const SubTopic_matsu = "/tm_rm"; // Topic to subscribe
@@ -66,3 +66,25 @@ const char *const MQTT_U_KR = "robo";
 const char *MQTT_P = "hogehoge";
 const char *const MQTT_P_TM = "hogehoge";
 const char *const MQTT_P_KR = "hogehoge";
+
+
+
+const char *SubTopic0    = "/robo_remo";                    // Topic to subscribe
+const char *SubTopic1    = "/tm_rm";                    // Topic to subscribe
+const char *SubTopic2    = "/kr_rm";                    // Topic to subscribe
+const char *SubTopic3    = "/tk_rm";                    // Topic to subscribe
+const char *SubTopic4    = "/hy_rm";                    // Topic to subscribe
+
+const char *PubTopic0    = "/robo_remoa";                    // Topic to publish
+const char *PubTopic1    = "/tm_rma";                    // Topic to publish
+const char *PubTopic2    = "/kr_rma";                    // Topic to publish
+const char *PubTopic3    = "/tk_rma";                    // Topic to publish
+const char *PubTopic4    = "/hy_rma";                    // Topic to publish
+
+const char *PubTopic_s1    = "/s1";
+const char *PubTopic_s2    = "/s2";
+const char *PubTopic_s3    = "/s3";
+
+const char *PubTopic_d1    = "/d1";
+const char *PubTopic_d2    = "/d2";
+const char *PubTopic_d3    = "/d3";
