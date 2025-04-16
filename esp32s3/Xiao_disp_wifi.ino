@@ -91,6 +91,7 @@ int wifi_Mqtt_state = 0;  //0-- nowifi 1-- wifiok MQTT ng  2--MQTTok
 int receivedValue = 0;
 int receivedValue_to_sousin = 0;
 int mqtt_incoming_Flag  = 0;
+long wifi_connect_time = 0;
 
 int answerback_incomig_Flag = 0;
 int debug_signal_incomig_Flag = 0;
@@ -119,7 +120,7 @@ int counter_mqtt;
 int counter_5;
 int counter_6;
 int counter_8;
-
+int counter_wifi;
 int counter_sf;
 
 //display設定--------------------------------------------------
@@ -188,6 +189,7 @@ void setup() {
     Serial.println("SSD1306 allocation failed");
     for (;;); // Don't proceed, loop forever
   }
+   WiFi.disconnect();
 
   //------------------------
   pinMode(BTN1, INPUT);
@@ -211,8 +213,8 @@ void setup() {
   lcd.setRotation(2);
 
   // check for the WiFi module:
-  setupWifi();
-
+  //  setupWifi();
+  setupWifi_2nd();
 
   // タイマー構成の定義-------------------------
   esp_timer_create_args_t timer_args = {
@@ -224,7 +226,7 @@ void setup() {
 
   esp_timer_handle_t timer;
   esp_timer_create(&timer_args, &timer);
-  esp_timer_start_periodic(timer, 1000);  // 1000us = 1msごとに実行
+  esp_timer_start_periodic(timer, 2000);  // 1000us = 1msごとに実行
 
 
   //display.clearDisplay();
@@ -251,6 +253,13 @@ void loop() {
 
   loop_count_up_by_timer();
   loop_schedule();
+
+  if (!client.connected())
+  {
+    reConnect();
+  }
+  client.loop();
+
 }
 //------ 関数 --------------------------------------------------------
 /* タイマー割り込み処理 */
@@ -270,19 +279,21 @@ void loop_count_up_by_timer() {
     counter_mqtt++;
     counter_6++;
     counter_8++;
+    counter_wifi++;
     timer_flag = false;
 
   }
 }
 
 void loop_schedule(void) {
-
+  bool done = true;
   //OLED液晶表示
   if (counter_2 > 50) {
     //    oled_disp_robo_sens_ver3();
     func_button_input();
     oled_disp_control_lav();
     counter_2 = 0;
+    setupWifi_connect_kakunin();
   }
 
   //シリアル通信の確認
@@ -316,6 +327,20 @@ void loop_schedule(void) {
       }
     }
     counter_8 = 0;
+  }
+
+  //wifi 再接続1sec
+  if (    counter_wifi > 2000) {
+    counter_wifi = 0;
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WIFI RETRY");
+      WiFi.disconnect();
+
+      delay(100);
+        WiFi.begin(ssid, password); // Start Wifi connection.
+
+      //WiFi.reconnect();
+    }
   }
 
 
@@ -552,6 +577,7 @@ void func_machine_identify()
       password = password_matsu;
       mqtt_server = mqtt_server_matsu;
       PubTopic = PubTopic_matsu;
+      SubTopic = SubTopic_matsu;
       machineName = machineName_matsu;
       MQTT_M = MQTT_M_TM;
       MQTT_U = MQTT_U_TM;
@@ -562,6 +588,7 @@ void func_machine_identify()
       password = password_koza;
       mqtt_server = mqtt_server_koza;
       PubTopic = PubTopic_koza;
+      SubTopic = SubTopic_koza;
       machineName = machineName_koza;
       MQTT_M = MQTT_M_KR;
       MQTT_U = MQTT_U_KR;
@@ -597,8 +624,7 @@ void setupWifi()
 
   WiFi.mode(WIFI_STA);        // Set the mode to WiFi station mode.
   WiFi.begin(ssid, password); // Start Wifi connection.
-  Serial.print("4 ");
-  WiFi.setTxPower(WIFI_POWER_18_5dBm); // 送信出力値を設定
+  WiFi.setTxPower(WIFI_POWER_17dBm); // 送信出力値を設定
 
   while (WiFi.status() != WL_CONNECTED && wifi_NG_counter < 10)
   {
@@ -622,10 +648,51 @@ void setupWifi()
   }
 }
 
+void setupWifi_2nd()
+{
+  int wifi_NG_counter = 0;
+
+  delay(10);
+
+  Serial.printf("\nStart WiFiMQTTSecure on \n");
+
+  WiFi.mode(WIFI_STA);        // Set the mode to WiFi station mode.
+  WiFi.begin(ssid, password); // Start Wifi connection.
+  Serial.print("4 ");
+  WiFi.setTxPower(WIFI_POWER_18_5dBm); // 送信出力値を設定
+
+  wifi_connect_time = millis();
+}
+
+void setupWifi_connect_kakunin() {
+  long now_time;
+  if (wifi_Mqtt_state == 0)
+  {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifi_Mqtt_state = 1;
+      Serial.println("wifi_ok");
+      now_time = millis() - wifi_connect_time;
+      Serial.println("( ms)" + String(now_time));
+    }
+  } else if (wifi_Mqtt_state == 1) {
+    //MQTT
+    //MQTT設定
+    client.setServer(mqtt_server, 1883);
+    client.setCallback(callback); // Sets the message callback function.  设置消息回调函数
+    Serial.printf("mq_setup is ok.\n");
+    wifi_Mqtt_state = 2;
+  }  else {
+    //WIFI接続できているので、何もしない
+  }
+
+}
+
 //------------------------------------------------
 
 void callback(char *topic, byte * payload, unsigned int length)
 {
+  Serial.println("MQTT_IS_COMING");
+
   //canvasMQTT.fillSprite(TFT_GREEN);
   //canvasMQTT.setCursor(20, 20);
   //canvasMQTT.print("Message arrived [");
@@ -638,6 +705,14 @@ void callback(char *topic, byte * payload, unsigned int length)
   //canvasMQTT.println();
   //canvasMQTT.pushSprite(&canvas1, 0, 0);
   //canvas1.pushSprite(&display, 100, 100);
+
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 }
 
 void button_BAT_read() {
@@ -711,6 +786,16 @@ void publish_message_sens() {
   client.publish(PubTopic_s2, rx_sen2.c_str());
   client.publish(PubTopic_s3, rx_sen3.c_str());
 }
+void publish_message_test() {
+
+  /*パブリッシュの実施*/
+  char counterStr[6]; // 必要に応じて適切なサイズに調整
+  long count_number = 123456;
+  Serial.println("mqtt_publish:" + String(PubTopic));
+  sprintf(counterStr, "%d", count_number);
+  client.publish(PubTopic, counterStr); // Publishes a message to the specified
+}
+
 
 void publish_message_debug() {
   client.publish(PubTopic_d1, rx_dbg1.c_str());
@@ -718,3 +803,26 @@ void publish_message_debug() {
   client.publish(PubTopic_d3, rx_dbg3.c_str());
 }
 
+void reConnect()
+{
+  if (wifi_Mqtt_state > 1) {
+    while (!client.connected())
+    { wifi_Mqtt_state = 2;
+
+      if (client.connect(MQTT_M, MQTT_U, MQTT_P))
+      {
+        delay(500);
+      }
+      if (client.connected()) {
+        Serial.println("mqtt connected ");
+        Serial.println("mqtt " + String(MQTT_M));
+        Serial.println("mqtt " + String(MQTT_U));
+        Serial.println("mqtt " + String(MQTT_P));
+        Serial.println("Subt " + String(SubTopic));
+        client.subscribe(SubTopic);
+
+      }
+    }
+    wifi_Mqtt_state = 3;
+  }
+}
