@@ -69,7 +69,7 @@ void ui_disp() {
       disp_12();
       break;
     case 20://手動選択画面
-      //disp_20();
+      disp_20();
       break;
     case 21://作戦番号の画面
       disp_21();
@@ -106,17 +106,22 @@ void ui_10() {
     else if (button_3_downedge) {
       ui_screen_next = 11;
     } else if (button_2_downedge) {
+      publish_message_test();
+
       ui_screen_next = 20;
     }
+  }
 
-  } else   if (ui_screen == 11 ) {
+  if (ui_screen == 11 ) {
     if (button_1_downedge) {
       ui_screen_next = 10;
     }
     else if (button_3_downedge) {
       ui_screen_next = 12;
     }
-  } else   if (ui_screen == 12 ) {
+  }
+
+  if (ui_screen == 12 ) {
     //アナログ抵抗器によるマシン認識変更画面
     //０　変更しない
     //１　アナログチューン
