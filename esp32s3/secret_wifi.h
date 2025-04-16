@@ -47,7 +47,7 @@ const char *PubTopic_soushin = "/robo_remo"; // Topic to publish //
 const char *SubTopic = "/rm";
 
 const char *const PubTopic_1 = "/debug_rma"; // Topic to publish
-const char *const PubTopic_matsu = "/tm_rma"; // Topic to publish
+const char *const PubTopic_matsu = "/tm_rm"; // Topic to publish
 const char *const PubTopic_koza =  "/kr_rma";  // Topic to publish
 
 const char *const SubTopic_1 = "/debug_rm"; // Topic to subscribe
