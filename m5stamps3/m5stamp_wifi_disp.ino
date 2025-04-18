@@ -118,6 +118,7 @@ int counter_3;
 int counter_mqtt;
 int counter_5;
 int counter_6;
+int counter_6_1 =0;
 int counter_8;
 int counter_wifi;
 int counter_sf;
@@ -188,7 +189,7 @@ void setup() {
     Serial.println("SSD1306 allocation failed");
     for (;;); // Don't proceed, loop forever
   }
-   WiFi.disconnect();
+  WiFi.disconnect();
 
   //------------------------
   pinMode(BTN1, INPUT);
@@ -309,7 +310,7 @@ void loop_schedule(void) {
   }
 
   if (mqtt_incoming_Flag == 1 && counter_6 > 200) {
-    //serial_comu_soushin_remocon2();
+    serial_comu_soushin_remocon2();
     counter_6 = 0;
     //MQTTでメッセージが来た時には、50msecごとに送信する。
     //アンサーバック値が来たときに、mqtt_incoming_Flagを下げる。
@@ -336,7 +337,7 @@ void loop_schedule(void) {
       WiFi.disconnect();
 
       delay(100);
-        WiFi.begin(ssid, password); // Start Wifi connection.
+      WiFi.begin(ssid, password); // Start Wifi connection.
 
       //WiFi.reconnect();
     }
@@ -482,8 +483,8 @@ void serial_comu_micom() {
           num_state = rx_sak3.toInt();
           if (num_state == serial_trans3) {
             answerback_deta = answerback_deta + num_state;
-            //mqtt_incoming_Flag = 0;
-            //answerback_incomig_Flag = 1;
+            mqtt_incoming_Flag = 0;
+            answerback_incomig_Flag = 1;
             //アンサーバック値がGo/Stopコマンドの場合、捨てる(dispに表示したくない)
             if (answerback_deta == 909003 || answerback_deta == 909005) {
               answerback_deta = answerback_deta_prev;
@@ -547,6 +548,10 @@ void func_machine_identify()
   //マシンの識別(常時しない。)
   Serial.printf("\n\n<マシン認識>\n");
   sensorValue = analogRead(AD_MACHINE_IDENTIFY); //0~4096
+
+
+  sensorValue = 1500;
+
   Serial.printf("(AD値:%d)", sensorValue);
   if (sensorValue < 1024) {
     user_mode = 0;
@@ -749,10 +754,16 @@ void button_BAT_read() {
 
 //-MQTT-publish----------------------------------------------
 void func_mqtt_publish_task() {
+  int count_number;
+
+
   if (answerback_incomig_Flag == 1) {
     //アンサーバック値をMQTTでリモコン側に返す。
     publish_message_answerback();
     answerback_incomig_Flag = 0;
+    count_number = (serial_trans1 * 10000) + (serial_trans2 * 100) + serial_trans3;
+    tgt_sakusen_num = count_number;
+
   }
 
   if (debug_signal_incomig_Flag == 1) {
@@ -824,4 +835,47 @@ void reConnect()
     }
     wifi_Mqtt_state = 3;
   }
+}
+
+
+void serial_comu_soushin_remocon2() {
+  int result;
+  int receivedValue_soushin;
+  char sendPacket1[24] = "";
+  char sendPacket2[24] = "";
+  char sendPacket3[24] = "";
+
+  counter_6_1++;
+
+  if (counter_6_1 > 5) {
+    counter_6_1 = 1;
+  }
+  receivedValue_soushin = receivedValue;
+  //Txに出力
+  //甲乙丙:2桁/2桁/2桁 を 分割し、パディング
+  serial_trans1 = receivedValue_soushin / 10000;
+  sprintf(sendPacket1, "%02d", serial_trans1);
+  //serial_trans1:90
+  receivedValue_soushin = receivedValue_soushin - (serial_trans1 * 10000);
+  serial_trans2 = receivedValue_soushin / 100;
+  sprintf(sendPacket2, "%02d", serial_trans2);
+  receivedValue_soushin = receivedValue_soushin - (serial_trans2 * 100);
+  serial_trans3 = receivedValue_soushin;
+  sprintf(sendPacket3, "%02d", serial_trans3);
+
+  Serial1.println("S");
+
+  Serial1.println(String(sendPacket1));
+  Serial1.println(String(sendPacket2));
+  Serial1.println(String(sendPacket3));
+  //シリアルコンソールに出力
+  Serial.print("picoからBPへ送信");
+  Serial.print("\n");
+  Serial.println(String(sendPacket1));
+  //  Serial.print("\n");
+  Serial.println(String(sendPacket2));
+  //  Serial.print("\n");
+  Serial.println(String(sendPacket3));
+  Serial.print("\n");
+  //  Serial.println(counter_6_1);
 }
